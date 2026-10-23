@@ -1,0 +1,17 @@
+{
+  "activeProvider": "gemini",
+  "providers": {
+    "gemini": {
+      "model": "gemini-2.0-flash",
+      "apiKeyEnv": "GEMINI_API_KEY",
+      "maxTokens": 1000,
+      "temperature": 0.3
+    },
+    "gpt": {
+      "model": "gpt-4o-mini",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "maxTokens": 1000,
+      "temperature": 0.3
+    }
+  }
+}
