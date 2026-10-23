@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model ai_usage_logs {
+  id                BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  ticket_id         BigInt?            @db.UnsignedBigInt
+  type              ai_usage_logs_type
+  provider          String             @db.VarChar(30)
+  model             String             @db.VarChar(60)
+  prompt_tokens     Int?               @db.UnsignedInt
+  completion_tokens Int?               @db.UnsignedInt
+  latency_ms        Int?               @db.UnsignedInt
+  success           Boolean
+  error_message     String?            @db.VarChar(500)
+  created_at        DateTime           @default(now()) @db.DateTime(0)
+  tickets           tickets?           @relation(fields: [ticket_id], references: [id], onUpdate: NoAction, map: "fk_ai_logs_ticket")
+
+  @@index([created_at], map: "idx_ai_logs_created")
+  @@index([ticket_id], map: "idx_ai_logs_ticket")
+}
+
+model author_profiles {
+  user_id             BigInt    @id @db.UnsignedBigInt
+  author_code         String    @unique(map: "uq_author_profiles_code") @db.VarChar(20)
+  phone               String?   @db.VarChar(25)
+  city                String?   @db.VarChar(80)
+  joined_date         DateTime? @db.Date
+  bank_details_linked Boolean   @default(true)
+  created_at          DateTime  @default(now()) @db.DateTime(0)
+  updated_at          DateTime  @default(now()) @db.DateTime(0)
+  users               users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_author_profiles_user")
+}
+
+model book_platforms {
+  book_id  BigInt                  @db.UnsignedBigInt
+  platform book_platforms_platform
+  books    books                   @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_book_platforms_book")
+
+  @@id([book_id, platform])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model books {
+  id               BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  book_code        String               @unique(map: "uq_books_code") @db.VarChar(20)
+  author_id        BigInt               @db.UnsignedBigInt
+  title            String               @db.VarChar(255)
+  isbn             String               @unique(map: "uq_books_isbn") @db.VarChar(32)
+  genre            String?              @db.VarChar(120)
+  publication_date DateTime?            @db.Date
+  status           books_status         @default(MANUSCRIPT_RECEIVED)
+  mrp              Decimal?             @db.Decimal(10, 2)
+  royalty_per_copy Decimal?             @db.Decimal(10, 2)
+  copies_sold      Int                  @default(0) @db.UnsignedInt
+  royalty_earned   Decimal              @default(0.00) @db.Decimal(12, 2)
+  royalty_paid     Decimal              @default(0.00) @db.Decimal(12, 2)
+  royalty_pending  Decimal              @default(0.00) @db.Decimal(12, 2)
+  last_payout_date DateTime?            @db.Date
+  print_partner    books_print_partner?
+  created_at       DateTime             @default(now()) @db.DateTime(0)
+  updated_at       DateTime             @default(now()) @db.DateTime(0)
+  book_platforms   book_platforms[]
+  users            users                @relation(fields: [author_id], references: [id], onUpdate: NoAction, map: "fk_books_author")
+  tickets          tickets[]
+
+  @@index([author_id, status], map: "idx_books_author_status")
+}
+
+model internal_notes {
+  id         BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  ticket_id  BigInt   @db.UnsignedBigInt
+  admin_id   BigInt   @db.UnsignedBigInt
+  body       String   @db.Text
+  created_at DateTime @default(now()) @db.DateTime(0)
+  users      users    @relation(fields: [admin_id], references: [id], onUpdate: NoAction, map: "fk_notes_admin")
+  tickets    tickets  @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notes_ticket")
+
+  @@index([admin_id], map: "fk_notes_admin")
+  @@index([ticket_id, created_at], map: "idx_notes_ticket_created")
+}
+
+model notifications {
+  id         BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
+  user_id    BigInt             @db.UnsignedBigInt
+  type       notifications_type
+  title      String             @db.VarChar(160)
+  body       String?            @db.VarChar(500)
+  ticket_id  BigInt?            @db.UnsignedBigInt
+  is_read    Boolean            @default(false)
+  read_at    DateTime?          @db.DateTime(0)
+  created_at DateTime           @default(now()) @db.DateTime(0)
+  tickets    tickets?           @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notifications_ticket")
+  users      users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notifications_user")
+
+  @@index([ticket_id], map: "idx_notifications_ticket")
+  @@index([user_id, is_read, created_at], map: "idx_notifications_user_read_created")
+}
+
+model ticket_messages {
+  id             BigInt                      @id @default(autoincrement()) @db.UnsignedBigInt
+  ticket_id      BigInt                      @db.UnsignedBigInt
+  sender_id      BigInt                      @db.UnsignedBigInt
+  sender_role    ticket_messages_sender_role
+  body           String                      @db.Text
+  was_ai_drafted Boolean                     @default(false)
+  created_at     DateTime                    @default(now()) @db.DateTime(0)
+  users          users                       @relation(fields: [sender_id], references: [id], onUpdate: NoAction, map: "fk_messages_sender")
+  tickets        tickets                     @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_messages_ticket")
+
+  @@index([sender_id], map: "fk_messages_sender")
+  @@index([ticket_id, created_at], map: "idx_messages_ticket_created")
+}
+
+model tickets {
+  id                                  BigInt               @id @default(autoincrement()) @db.UnsignedBigInt
+  ticket_code                         String?              @unique(map: "uq_tickets_code") @db.VarChar(20)
+  author_id                           BigInt               @db.UnsignedBigInt
+  book_id                             BigInt?              @db.UnsignedBigInt
+  subject                             String               @db.VarChar(200)
+  description                         String               @db.Text
+  status                              tickets_status       @default(OPEN)
+  category                            tickets_category     @default(GENERAL_INQUIRY)
+  ai_category                         tickets_ai_category?
+  category_overridden                 Boolean              @default(false)
+  priority                            tickets_priority     @default(MEDIUM)
+  ai_priority                         tickets_ai_priority?
+  priority_overridden                 Boolean              @default(false)
+  ai_status                           tickets_ai_status    @default(PENDING)
+  ai_reason                           String?              @db.VarChar(500)
+  ai_draft                            String?              @db.Text
+  ai_draft_generated_at               DateTime?            @db.DateTime(0)
+  assigned_to_id                      BigInt?              @db.UnsignedBigInt
+  first_response_at                   DateTime?            @db.DateTime(0)
+  resolved_at                         DateTime?            @db.DateTime(0)
+  closed_at                           DateTime?            @db.DateTime(0)
+  last_activity_at                    DateTime             @default(now()) @db.DateTime(0)
+  created_at                          DateTime             @default(now()) @db.DateTime(0)
+  updated_at                          DateTime             @default(now()) @db.DateTime(0)
+  ai_usage_logs                       ai_usage_logs[]
+  internal_notes                      internal_notes[]
+  notifications                       notifications[]
+  ticket_messages                     ticket_messages[]
+  users_tickets_assigned_to_idTousers users?               @relation("tickets_assigned_to_idTousers", fields: [assigned_to_id], references: [id], onUpdate: NoAction, map: "fk_tickets_assignee")
+  users_tickets_author_idTousers      users                @relation("tickets_author_idTousers", fields: [author_id], references: [id], onUpdate: NoAction, map: "fk_tickets_author")
+  books                               books?               @relation(fields: [book_id], references: [id], onUpdate: NoAction, map: "fk_tickets_book")
+
+  @@index([assigned_to_id, status], map: "idx_tickets_assignee_status")
+  @@index([author_id, created_at], map: "idx_tickets_author_created")
+  @@index([book_id], map: "idx_tickets_book")
+  @@index([category], map: "idx_tickets_category")
+  @@index([last_activity_at], map: "idx_tickets_last_activity")
+  @@index([status, priority, created_at], map: "idx_tickets_queue")
+}
+
+model users {
+  id                                    BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  email                                 String            @unique(map: "uq_users_email")
+  password_hash                         String            @db.VarChar(255)
+  name                                  String            @db.VarChar(120)
+  role                                  users_role        @default(AUTHOR)
+  is_active                             Boolean           @default(true)
+  last_login_at                         DateTime?         @db.DateTime(0)
+  created_at                            DateTime          @default(now()) @db.DateTime(0)
+  updated_at                            DateTime          @default(now()) @db.DateTime(0)
+  author_profiles                       author_profiles?
+  books                                 books[]
+  internal_notes                        internal_notes[]
+  notifications                         notifications[]
+  ticket_messages                       ticket_messages[]
+  tickets_tickets_assigned_to_idTousers tickets[]         @relation("tickets_assigned_to_idTousers")
+  tickets_tickets_author_idTousers      tickets[]         @relation("tickets_author_idTousers")
+
+  @@index([role, is_active], map: "idx_users_role_active")
+}
+
+enum book_platforms_platform {
+  AMAZON_INDIA
+  FLIPKART
+  AMAZON_US
+  AMAZON_UK
+  BOOKLEAF_STORE
+}
+
+enum ai_usage_logs_type {
+  CLASSIFY
+  DRAFT
+}
+
+enum notifications_type {
+  TICKET_CREATED
+  TICKET_REPLY
+  TICKET_STATUS_CHANGED
+  TICKET_ASSIGNED
+  AI_FAILED
+}
+
+enum ticket_messages_sender_role {
+  AUTHOR
+  ADMIN
+}
+
+enum users_role {
+  AUTHOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum tickets_status {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum tickets_category {
+  ROYALTY_PAYMENTS
+  ISBN_METADATA
+  PRINTING_QUALITY
+  DISTRIBUTION_AVAILABILITY
+  BOOK_STATUS_PRODUCTION
+  GENERAL_INQUIRY
+}
+
+enum books_status {
+  MANUSCRIPT_RECEIVED
+  EDITING
+  COVER_DESIGN
+  TYPESETTING
+  PROOFREADING
+  ISBN_ASSIGNMENT
+  PRINTING
+  DISTRIBUTION_SETUP
+  PUBLISHED_LIVE
+}
+
+enum tickets_ai_category {
+  ROYALTY_PAYMENTS
+  ISBN_METADATA
+  PRINTING_QUALITY
+  DISTRIBUTION_AVAILABILITY
+  BOOK_STATUS_PRODUCTION
+  GENERAL_INQUIRY
+}
+
+enum tickets_priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum tickets_ai_priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum tickets_ai_status {
+  PENDING
+  DONE
+  FAILED
+}
+
+enum books_print_partner {
+  IN_HOUSE
+  REPRO_INDIA
+  EPITOME_BOOKS
+}
