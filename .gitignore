@@ -3,3 +3,8 @@ node_modules
 .env
 
 /BE/generated/prisma
+/bookleaf_frontend
+/BE/bookleaf_be/.vscode
+BE/bookleaf_be/pyscript.py
+bookleaf_backend (1).zip
+bookleaf_frontend.zip
