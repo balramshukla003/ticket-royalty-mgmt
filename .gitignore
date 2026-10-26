@@ -3,3 +3,6 @@ node_modules
 .env
 
 /BE/generated/prisma
+/BE/bookleaf_be/.vscode
+/BE/bookleaf_be
+bookleaf_frontend.zip
